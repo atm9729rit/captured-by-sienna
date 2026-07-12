@@ -61,25 +61,16 @@
     <a class="small" href="index.html">← View site</a>
   </div>
 
-  <!-- ===== TOKEN / LOGIN ===== -->
+  <!-- ===== LOGIN ===== -->
   <div class="card" id="auth-card">
     <h2>Sign in</h2>
-    <p class="muted small">Paste your GitHub access token. It stays only in this browser (never uploaded, never in the code). You do this once per device.</p>
-    <label>GitHub token</label>
-    <input type="password" id="token" placeholder="github_pat_..." autocomplete="off" />
+    <p class="muted small">Enter your password.</p>
+    <label>Password</label>
+    <input type="password" id="password" autocomplete="current-password" />
     <div class="row" style="margin-top:16px">
-      <button id="save-token">Sign in</button>
-      <button class="ghost" id="how-token">How do I get a token?</button>
+      <button id="unlock">Sign in</button>
     </div>
     <div class="status" id="auth-status"></div>
-    <div class="note hide" id="token-help">
-      <strong>One-time setup:</strong><br>
-      1. Go to <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a><br>
-      2. Token name: "Sienna galleries". Expiration: 1 year.<br>
-      3. Resource owner: <strong>AztecNightmare365</strong>. Repository access → Only select repositories → <strong>captured-by-sienna</strong>.<br>
-      4. Permissions → Repository → <strong>Contents: Read and write</strong>.<br>
-      5. Generate, copy the <code>github_pat_...</code> string, paste above.
-    </div>
   </div>
 
   <!-- ===== APP ===== -->
@@ -118,7 +109,24 @@
 const GH = { owner: "atm9729rit", repo: "captured-by-sienna", branch: "main" };
 const API = "https://api.github.com";
 const $ = s => document.querySelector(s);
-let TOKEN = localStorage.getItem("gh_token") || "";
+let TOKEN = "";
+
+// GitHub token, encrypted with the login password (AES-GCM / PBKDF2).
+// The password decrypts this at sign-in; the blob alone is useless without it.
+const EMBEDDED_ENC = '{"s":"bl8NrhPMnxdy95tSL3BBtw==","i":"iuF7mLYxKKzWJxwO","c":"iKKY5etb9Rrv5Vep8BZ+s63pB+rbtfX4SdJE7tVTXuf4HCbcIH5CROz6N1l58D5EgBMc3m7zWyxBL64AyUP7nZLITRIpVmJAxG3mB4qzN1jIgUsy9DrfZoMy6P4ohJY2Eplf0DkNioQixbqqYg=="}';
+
+// ---- Web Crypto: decrypt the token with the password ----
+const dec = new TextDecoder();
+function unb64(str){ return Uint8Array.from(atob(str), c => c.charCodeAt(0)); }
+async function decryptToken(blob, password){
+  const { s, i, c } = JSON.parse(blob);
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: unb64(s), iterations: 150000, hash: "SHA-256" },
+    base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(i) }, key, unb64(c));
+  return dec.decode(pt);
+}
 
 function gh(path, opts = {}) {
   return fetch(API + path, {
@@ -173,16 +181,20 @@ async function verifyToken() {
 }
 function showApp() { $("#auth-card").classList.add("hide"); $("#app").classList.remove("hide"); loadGalleries(); }
 
-$("#how-token").onclick = () => $("#token-help").classList.toggle("hide");
-$("#save-token").onclick = async () => {
-  const t = $("#token").value.trim();
-  if (!t) return setStatus($("#auth-status"), "Enter a token.", "err");
-  TOKEN = t;
-  setStatus($("#auth-status"), "Checking…");
-  try { await verifyToken(); localStorage.setItem("gh_token", t); showApp(); }
-  catch (e) { TOKEN = ""; setStatus($("#auth-status"), e.message, "err"); }
+// Login: decrypt the embedded token with the password.
+$("#unlock").onclick = async () => {
+  const pw = $("#password").value;
+  const as = $("#auth-status");
+  if (!pw) return setStatus(as, "Enter your password.", "err");
+  setStatus(as, "Signing in…");
+  try {
+    TOKEN = await decryptToken(EMBEDDED_ENC, pw);
+  } catch (e) { return setStatus(as, "Wrong password.", "err"); }
+  try { await verifyToken(); showApp(); }
+  catch (e) { TOKEN = ""; setStatus(as, "Access token is no longer valid — ask Aaron to refresh it.", "err"); }
 };
-$("#signout").onclick = () => { localStorage.removeItem("gh_token"); location.reload(); };
+$("#password").addEventListener("keydown", e => { if (e.key === "Enter") $("#unlock").click(); });
+$("#signout").onclick = () => location.reload();   // locks; token only lived in memory
 
 // ---- File count ----
 $("#g-files").onchange = () => {
@@ -311,10 +323,8 @@ async function deleteGallery(name) {
   } catch (e) { setStatus(ls, "Delete failed: " + (e.message || ""), "err"); }
 }
 
-// ---- Boot ----
-if (TOKEN) {
-  verifyToken().then(showApp).catch(() => { localStorage.removeItem("gh_token"); TOKEN = ""; });
-}
+// ---- Boot ---- (always start at the password screen; token lives only in memory after unlock)
+$("#password").focus();
 </script>
 </body>
 </html>

@@ -7,30 +7,15 @@
 <meta name="description" content="Portrait, lifestyle & event photography by Sienna, Marion NY." />
 
 <!-- ============================================================= -->
-<!--  CONFIG — edit these 6 lines, nothing else needed             -->
+<!--  CONFIG — edit these lines                                    -->
 <!-- ============================================================= -->
 <script>
 const CONFIG = {
   photographerName: "Sienna",
   tagline: "Portrait • Lifestyle • Event Photography",
-  email: "hello@example.com",              // shown in footer / contact button
   instagramHandle: "captured.by.sienna",   // WITHOUT the @
   city: "Marion, NY",
-  // About portrait. PREFER a real image file (sharp, no IG branding):
-  //   drop e.g. headshot.jpg in a "photos" folder, set: aboutImage: "photos/headshot.jpg"
-  aboutImage: "photos/headshot.webp",   // if set, this wins over aboutPost below
-  // Fallback: Instagram post of Sienna. NOTE: must be a normal 11-char /p/CODE/ link.
-  aboutPost: "https://www.instagram.com/p/DQ2LNYykVBzNOc_h0bLRtM1ZLyrBcvBytQ94wk0/",
-  // Instagram post links shown in the portfolio gallery. Add/remove freely.
-  instagramPosts: [
-    "https://www.instagram.com/p/DaJjtF8jsz8/",
-    "https://www.instagram.com/p/DYfVmfjDruV/",
-    "https://www.instagram.com/p/DSvAEh6jmkC/",
-    "https://www.instagram.com/p/DOl3DswDssP/",
-    "https://www.instagram.com/p/DOtxRcKjrb6/",
-    "https://www.instagram.com/p/DYVvg72jOsG/",
-    "https://www.instagram.com/p/DYAizEKFJs-/"
-  ]
+  aboutImage: "photos/headshot.webp"        // her portrait (falls back to a monogram if missing)
 };
 </script>
 
@@ -105,29 +90,9 @@ const CONFIG = {
 
   /* ---- ABOUT ---- */
   .about { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
-  .about .portrait { aspect-ratio: 4/5; background: var(--bg-2) center/cover;
-    border-radius: 4px; box-shadow: 0 20px 50px rgba(0,0,0,.08); }
-  #about-portrait { aspect-ratio: auto; background: none; box-shadow: none; }
-  #about-portrait .instagram-media { margin: 0 auto !important; }
+  #about-portrait img { width: 100%; border-radius: 4px; box-shadow: 0 20px 50px rgba(0,0,0,.08); }
   .about p { color: var(--ink-soft); margin-top: 18px; font-size: 1.05rem; }
   @media (max-width: 720px){ .about { grid-template-columns: 1fr; } }
-
-  /* ---- GALLERY (Instagram embeds) ---- */
-  .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px; justify-items: center; }
-  .gallery .instagram-media { margin: 0 auto !important; }
-
-  /* ---- SERVICES ---- */
-  .cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; }
-  .card { background: #fff; border: 1px solid var(--line); border-radius: 6px;
-    padding: 38px 30px; text-align: center; }
-  .card h3 { font-size: 1.8rem; }
-  .card .price { color: var(--accent); font-family: var(--serif); font-size: 1.6rem; margin: 8px 0 16px; }
-  .card ul { list-style: none; color: var(--ink-soft); font-size: .92rem; }
-  .card li { padding: 5px 0; border-top: 1px solid var(--line); }
-  .card li:first-child { border-top: none; }
-  @media (max-width: 720px){ .cards { grid-template-columns: 1fr; } }
-
 
   /* ---- INSTAGRAM ---- */
   .ig { text-align: center; }
@@ -147,8 +112,6 @@ const CONFIG = {
 
   /* ---- MOBILE ---- */
   html, body { overflow-x: hidden; max-width: 100%; }
-  .gallery .instagram-media,
-  #about-portrait .instagram-media { min-width: 0 !important; width: 100% !important; }
   @media (max-width: 640px) {
     .wrap { padding: 0 20px; }
     section { padding: 60px 0; }
@@ -156,12 +119,10 @@ const CONFIG = {
     .section-head { margin-bottom: 36px; }
     .about { gap: 32px; }
     #about-portrait { max-width: 380px; margin: 0 auto; }
-    .gallery { grid-template-columns: 1fr; gap: 16px; }
     .btn { padding: 14px 34px; }
-    /* keep nav usable: show a Contact shortcut instead of hidden links */
     .navlinks { display: flex !important; gap: 0; }
-    .navlinks a:not([href="#contact"]) { display: none; }
-    .navlinks a[href="#contact"] { color: var(--accent); font-weight: 500; }
+    .navlinks a:not([href="#instagram"]) { display: none; }
+    .navlinks a[href="#instagram"] { color: var(--accent); font-weight: 500; }
   }
 </style>
 </head>
@@ -170,10 +131,8 @@ const CONFIG = {
 <nav><div class="wrap">
   <a class="brand" href="#top" data-brand></a>
   <div class="navlinks">
-    <a href="#work">Work</a>
     <a href="#about">About</a>
-    <a href="#services">Services</a>
-    <a href="#contact">Contact</a>
+    <a href="#instagram">Instagram</a>
   </div>
 </div></nav>
 
@@ -181,12 +140,12 @@ const CONFIG = {
   <p class="eyebrow">Photography Studio</p>
   <h1 data-name></h1>
   <p class="tagline" data-tagline></p>
-  <a class="btn btn-solid" href="#contact">Get in Touch</a>
+  <a class="btn btn-solid" href="#instagram">Get in Touch</a>
 </div></header>
 
 <section id="about"><div class="wrap">
   <div class="about">
-    <div class="portrait" id="about-portrait"></div>
+    <div id="about-portrait"></div>
     <div>
       <p class="eyebrow">About</p>
       <h2>Capturing the quiet, honest moments.</h2>
@@ -196,23 +155,6 @@ const CONFIG = {
       things relaxed and let the moment lead.</p>
       <p>Based in <span data-city></span>. Always happy to travel for the right shot.</p>
     </div>
-  </div>
-</div></section>
-
-<section id="work" style="background:var(--bg-2)"><div class="wrap">
-  <div class="section-head"><p class="eyebrow">Portfolio</p><h2>Selected Work</h2></div>
-  <div class="gallery" id="gallery"></div>
-</div></section>
-
-<section id="services"><div class="wrap">
-  <div class="section-head"><p class="eyebrow">Sessions</p><h2>Packages</h2></div>
-  <div class="cards">
-    <div class="card"><h3>Mini</h3><div class="price">$120</div>
-      <ul><li>30 minutes</li><li>1 location</li><li>15 edited photos</li><li>Online gallery</li></ul></div>
-    <div class="card"><h3>Portrait</h3><div class="price">$220</div>
-      <ul><li>1 hour</li><li>2 locations</li><li>40 edited photos</li><li>Print release</li></ul></div>
-    <div class="card"><h3>Event</h3><div class="price">From $400</div>
-      <ul><li>Up to 3 hours</li><li>Full coverage</li><li>100+ edited photos</li><li>Fast turnaround</li></ul></div>
   </div>
 </div></section>
 
@@ -226,17 +168,12 @@ const CONFIG = {
         <rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/>
         <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>
     </a>
-    <a data-email-link href="#" aria-label="Email">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-        <rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
-    </a>
   </div>
 </div></section>
 
 <footer id="contact"><div class="wrap">
   <a class="brand" data-brand></a>
   <p data-tagline></p>
-  <p>Email: <a data-email-text data-email-link href="#"></a></p>
   <p style="margin-top:20px;font-size:.8rem">
     <a href="privacy.html">Privacy Policy</a> &nbsp;·&nbsp;
     <a href="terms.html">Terms of Use</a> &nbsp;·&nbsp;
@@ -247,7 +184,6 @@ const CONFIG = {
 </div></footer>
 
 <script>
-// ---- Apply config to the page ----
 (function () {
   const C = CONFIG;
   document.querySelectorAll('[data-name]').forEach(e => e.textContent = C.photographerName);
@@ -261,49 +197,21 @@ const CONFIG = {
   document.querySelectorAll('[data-ig-link]').forEach(e => e.href = igUrl);
   document.querySelectorAll('[data-ig-handle]').forEach(e => { e.href = igUrl; e.textContent = "@" + C.instagramHandle; });
 
-  const mail = "mailto:" + C.email;
-  document.querySelectorAll('[data-email-link]').forEach(e => e.href = mail);
-  document.querySelectorAll('[data-email-text]').forEach(e => e.textContent = C.email);
-
   document.getElementById('year').textContent = new Date().getFullYear();
 
-  // ---- Instagram embeds (official, no API token) ----
-  function igBlockquote(url) {
-    const bq = document.createElement('blockquote');
-    bq.className = 'instagram-media';
-    bq.setAttribute('data-instgrm-permalink', url);
-    bq.setAttribute('data-instgrm-version', '14');
-    bq.style.cssText = 'margin:0;width:100%;max-width:540px;min-width:300px;';
-    return bq;
-  }
+  // ---- About portrait ----
   const portrait = document.getElementById('about-portrait');
-  const shortcode = (C.aboutPost || "").match(/\/p\/([^/?]+)/);
-  const validPost = shortcode && shortcode[1].length <= 15;   // real IG codes are ~11 chars
   if (C.aboutImage) {
     const img = document.createElement('img');
     img.src = C.aboutImage;
     img.alt = C.photographerName + ", photographer";
-    img.style.cssText = 'width:100%;border-radius:4px;box-shadow:0 20px 50px rgba(0,0,0,.08);';
     portrait.appendChild(img);
-  } else if (validPost) {
-    portrait.appendChild(igBlockquote(C.aboutPost));
   } else {
-    // graceful placeholder so the box never looks broken
     portrait.style.cssText = 'aspect-ratio:4/5;display:grid;place-items:center;'
       + 'background:var(--bg-2);border-radius:4px;box-shadow:0 20px 50px rgba(0,0,0,.08);';
     portrait.innerHTML = '<span style="font-family:var(--serif);font-size:5.5rem;color:var(--accent)">'
       + (C.photographerName[0] || 'S') + '</span>';
   }
-
-  const g = document.getElementById('gallery');
-  (C.instagramPosts || []).forEach(url => g.appendChild(igBlockquote(url)));
-
-  // Load Instagram's embed script, then render all blockquotes into iframes.
-  const s = document.createElement('script');
-  s.async = true;
-  s.src = 'https://www.instagram.com/embed.js';
-  s.onload = () => window.instgrm && window.instgrm.Embeds.process();
-  document.body.appendChild(s);
 })();
 </script>
 </body>
