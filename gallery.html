@@ -21,6 +21,13 @@
   .hero .eyebrow { font-size:.7rem; letter-spacing:.26em; text-transform:uppercase; color:var(--accent); font-weight:500; }
   .hero h1 { font-family:"Cormorant Garamond",serif; font-weight:300; font-size:clamp(2.4rem,6vw,4rem); margin-top:8px; }
   .hero .date { color:var(--soft); margin-top:8px; font-size:.9rem; letter-spacing:.04em; }
+  .dl-all { display:inline-block; margin-top:26px; padding:14px 34px; border:1px solid var(--ink);
+    border-radius:40px; font-size:.76rem; letter-spacing:.16em; text-transform:uppercase;
+    background:var(--ink); color:var(--bg); cursor:pointer; font-family:inherit;
+    transition:background .25s, border-color .25s; }
+  .dl-all:hover:not(:disabled) { background:var(--accent); border-color:var(--accent); }
+  .dl-all:disabled { opacity:.65; cursor:default; }
+  .dl-note { margin-top:10px; font-size:.8rem; color:var(--soft); min-height:1.2em; }
   .grid { max-width:1200px; margin:0 auto; padding:20px 20px 80px;
     columns:3; column-gap:14px; }
   .grid figure { break-inside:avoid; margin-bottom:14px; position:relative; overflow:hidden;
@@ -95,7 +102,10 @@ async function load() {
   PHOTOS = (meta.photos || []).map(p => base + "/" + p.name);
   const dateStr = meta.date ? new Date(meta.date + "T00:00").toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "";
   let html = '<div class="hero"><p class="eyebrow">Your Gallery</p><h1>' + escapeHtml(meta.title || "Gallery") + '</h1>' +
-    (dateStr ? '<p class="date">' + dateStr + '</p>' : '') + '</div><div class="grid" id="grid"></div>';
+    (dateStr ? '<p class="date">' + dateStr + '</p>' : '') +
+    '<div><button class="dl-all" id="dl-all">Download all photos</button>' +
+    '<p class="dl-note" id="dl-note"></p></div>' +
+    '</div><div class="grid" id="grid"></div>';
   $("#content").innerHTML = html;
   const grid = $("#grid");
   PHOTOS.forEach((src, i) => {
@@ -103,7 +113,93 @@ async function load() {
     const img = new Image(); img.src = src; img.loading = "lazy"; img.alt = "";
     fig.appendChild(img); fig.onclick = () => openLb(i); grid.appendChild(fig);
   });
-  if (!PHOTOS.length) fail("This gallery is empty.");
+  if (!PHOTOS.length) return fail("This gallery is empty.");
+  $("#dl-all").onclick = () => downloadAll(meta.title || slug);
+}
+
+// ---- Download all as a ZIP (built in-browser, no library) ----
+// JPEGs are already compressed, so entries are stored uncompressed (method 0).
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function makeZip(entries) {
+  const enc = new TextEncoder();
+  const chunks = [], central = [];
+  let offset = 0;
+  // DOS date/time for "now"
+  const d = new Date();
+  const dosTime = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+  const dosDate = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+
+  for (const e of entries) {
+    const name = enc.encode(e.name);
+    const crc = crc32(e.data), size = e.data.length;
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0, true);
+    lh.setUint16(8, 0, true); lh.setUint16(10, dosTime, true); lh.setUint16(12, dosDate, true);
+    lh.setUint32(14, crc, true); lh.setUint32(18, size, true); lh.setUint32(22, size, true);
+    lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+    chunks.push(new Uint8Array(lh.buffer), name, e.data);
+
+    const cd = new DataView(new ArrayBuffer(46));
+    cd.setUint32(0, 0x02014b50, true); cd.setUint16(4, 20, true); cd.setUint16(6, 20, true);
+    cd.setUint16(8, 0, true); cd.setUint16(10, 0, true); cd.setUint16(12, dosTime, true);
+    cd.setUint16(14, dosDate, true); cd.setUint32(16, crc, true);
+    cd.setUint32(20, size, true); cd.setUint32(24, size, true);
+    cd.setUint16(28, name.length, true); cd.setUint16(30, 0, true); cd.setUint16(32, 0, true);
+    cd.setUint16(34, 0, true); cd.setUint16(36, 0, true); cd.setUint32(38, 0, true);
+    cd.setUint32(42, offset, true);
+    central.push(new Uint8Array(cd.buffer), name);
+    offset += 30 + name.length + size;
+  }
+  const cdStart = offset;
+  let cdSize = 0; central.forEach(c => cdSize += c.length);
+  const eocd = new DataView(new ArrayBuffer(22));
+  eocd.setUint32(0, 0x06054b50, true); eocd.setUint16(4, 0, true); eocd.setUint16(6, 0, true);
+  eocd.setUint16(8, entries.length, true); eocd.setUint16(10, entries.length, true);
+  eocd.setUint32(12, cdSize, true); eocd.setUint32(16, cdStart, true); eocd.setUint16(20, 0, true);
+
+  return new Blob([...chunks, ...central, new Uint8Array(eocd.buffer)], { type: "application/zip" });
+}
+async function downloadAll(title) {
+  const btn = $("#dl-all"), note = $("#dl-note");
+  btn.disabled = true;
+  try {
+    const entries = [];
+    for (let i = 0; i < PHOTOS.length; i++) {
+      note.textContent = "Preparing " + (i + 1) + " of " + PHOTOS.length + "…";
+      const r = await fetch(PHOTOS[i]);
+      if (!r.ok) throw new Error("Could not fetch photo " + (i + 1));
+      entries.push({
+        name: String(i + 1).padStart(3, "0") + ".jpg",
+        data: new Uint8Array(await r.arrayBuffer())
+      });
+    }
+    note.textContent = "Building zip file…";
+    const blob = makeZip(entries);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = (title || "gallery").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") + "-photos.zip";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    note.textContent = PHOTOS.length + " photos downloaded.";
+  } catch (e) {
+    note.textContent = "Download failed. Try again, or save photos individually.";
+  } finally {
+    btn.disabled = false;
+  }
 }
 function escapeHtml(s){ const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
 
